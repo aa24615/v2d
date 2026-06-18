@@ -121,6 +121,76 @@ class KuaishouAdapterTest extends TestCase
         $this->assertSame('https://example.com/video_hd.mp4', $result->getVideoUrl());
     }
 
+    public function testFetchImageFromMobilePage(): void
+    {
+        // 模拟 v.m.chenzhongtech.com 移动端页面内联的 JSON 数据块
+        $block = [
+            'result' => 1,
+            'fid' => 2692937949,
+            'atlas' => [
+                'cdn' => ['p23.a.yximgs.com', 'p2.a.yximgs.com'],
+                'cdnList' => [['cdn' => 'p23.a.yximgs.com']],
+                'list' => ['/ufile/atlas/IMG_0.jpg', '/ufile/atlas/IMG_1.jpg'],
+            ],
+            'photo' => [
+                'caption' => '移动端图文标题',
+                'coverUrls' => [['url' => 'https://p2.a.yximgs.com/cover.jpg']],
+                'mainMvUrls' => [],
+                'userName' => '移动作者',
+                'kwaiId' => 'kwai123',
+                'headUrl' => 'https://p2.a.yximgs.com/head.jpg',
+            ],
+        ];
+        $html = '<html><script>' . json_encode($block, JSON_UNESCAPED_UNICODE) . '</script></html>';
+        $finalUrl = 'https://v.m.chenzhongtech.com/fw/photo/3x1234567890';
+        $client = $this->makeClient([$this->redirectResponse($html, $finalUrl)]);
+
+        $result = (new KuaishouAdapter($client))->fetch('https://v.kuaishou.com/Jdl248ZA');
+
+        $this->assertInstanceOf(ImageResult::class, $result);
+        $this->assertSame('image', $result->getType());
+        $this->assertSame('kuaishou', $result->getPlatform());
+        $this->assertSame('移动端图文标题', $result->getTitle());
+        $this->assertSame('移动作者', $result->getAuthor()->getNickname());
+        $this->assertSame('kwai123', $result->getAuthor()->getId());
+        $this->assertSame('https://p2.a.yximgs.com/head.jpg', $result->getAuthor()->getAvatar());
+        $this->assertSame('https://p2.a.yximgs.com/cover.jpg', $result->getCover());
+
+        $images = $result->getImages();
+        $this->assertCount(2, $images);
+        $this->assertSame('https://p23.a.yximgs.com/ufile/atlas/IMG_0.jpg', $images[0]);
+        $this->assertSame('https://p23.a.yximgs.com/ufile/atlas/IMG_1.jpg', $images[1]);
+    }
+
+    public function testFetchVideoFromMobilePage(): void
+    {
+        $block = [
+            'result' => 1,
+            'fid' => 123,
+            'atlas' => ['cdn' => [], 'list' => []],
+            'photo' => [
+                'caption' => '移动端视频',
+                'coverUrls' => [['url' => 'https://p2.a.yximgs.com/cover.jpg']],
+                'mainMvUrls' => [['url' => 'https://p2.a.yximgs.com/video.mp4', 'qualityType' => 'hd']],
+                'userName' => '视频作者',
+                'kwaiId' => 'kwai456',
+                'headUrl' => 'https://p2.a.yximgs.com/head.jpg',
+            ],
+        ];
+        $html = '<html><script>' . json_encode($block, JSON_UNESCAPED_UNICODE) . '</script></html>';
+        $finalUrl = 'https://v.m.chenzhongtech.com/fw/photo/3x1234567890';
+        $client = $this->makeClient([$this->redirectResponse($html, $finalUrl)]);
+
+        $result = (new KuaishouAdapter($client))->fetch('https://v.kuaishou.com/Jdl248ZA');
+
+        $this->assertInstanceOf(VideoResult::class, $result);
+        $this->assertSame('video', $result->getType());
+        $videos = $result->getVideos();
+        $this->assertCount(1, $videos);
+        $this->assertSame('https://p2.a.yximgs.com/video.mp4', $videos[0]['url']);
+        $this->assertSame('https://p2.a.yximgs.com/video.mp4', $result->getVideoUrl());
+    }
+
     public function testFetchInvalidUrlThrowsException(): void
     {
         $this->expectException(InvalidUrlException::class);
