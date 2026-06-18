@@ -19,8 +19,11 @@ use Zyan\V2d\Results\VideoResult;
  *  - 短链: https://v.kuaishou.com/xxxxx
  *  - 长链: https://www.kuaishou.com/short-video/{photo_id}
  *  - 长链: https://www.kuaishou.com/f/{photo_id}
+ *  - 移动端: https://v.m.chenzhongtech.com/fw/photo/{photo_id}
  *
- * 通过详情页 window.__APOLLO_STATE__ / __PAGE_STATE__ 解析图文与视频。
+ * 短链通常会重定向到移动端页面 v.m.chenzhongtech.com，
+ * 其图集数据内联在形如 `{"result":1,"fid":...,"atlas":{...},"photo":{...}}` 的 JSON 块中；
+ * 同时兼容 www.kuaishou.com 详情页的 __APOLLO_STATE__ / __PAGE_STATE__ 结构。
  *
  * @package Zyan\V2d\Adapters\Kuaishou
  */
@@ -44,7 +47,8 @@ class KuaishouAdapter extends AbstractAdapter
         $url = trim($url);
 
         return (bool) preg_match('#v\.kuaishou\.com/#i', $url)
-            || (bool) preg_match('#kuaishou\.com/(?:short-video|f|new-reco|profile)/#i', $url);
+            || (bool) preg_match('#kuaishou\.com/(?:short-video|f|new-reco|profile)/#i', $url)
+            || (bool) preg_match('#chenzhongtech\.com/fw/photo/#i', $url);
     }
 
     /**
@@ -67,7 +71,7 @@ class KuaishouAdapter extends AbstractAdapter
     }
 
     /**
-     * 从页面 HTML 中解析出作品原始数据。
+     * 从页面 HTML 中解析出作品原始数据（含 atlas）。
      *
      * @param string $html
      *
@@ -77,12 +81,26 @@ class KuaishouAdapter extends AbstractAdapter
      */
     protected function extractPhoto(string $html): array
     {
-        // Apollo Client State
+        // 1) 移动端页面：内联的 {"result":1,"fid":...,"atlas":{...},"photo":{...}}
+        $block = $this->extractJsonObject($html, '{"result":1,"fid"');
+        if (is_array($block)) {
+            $photo = $block['photo'] ?? [];
+            if (!is_array($photo)) {
+                $photo = [];
+            }
+            if (isset($block['atlas']) && is_array($block['atlas'])) {
+                $photo['atlas'] = $block['atlas'];
+            }
+            if (!empty($photo)) {
+                return $photo;
+            }
+        }
+
+        // 2) www.kuaishou.com 详情页：__APOLLO_STATE__
         $apollo = $this->matchJson(
             $html,
             '/window\.__APOLLO_STATE__\s*=\s*(\{.*?\})\s*;?\s*<\/script>/s'
         );
-
         if (is_array($apollo)) {
             $photo = $this->findPhotoInApollo($apollo);
             if (!empty($photo)) {
@@ -90,12 +108,11 @@ class KuaishouAdapter extends AbstractAdapter
             }
         }
 
-        // Page State
+        // 3) __PAGE_STATE__
         $pageState = $this->matchJson(
             $html,
             '/window\.__PAGE_STATE__\s*=\s*(\{.*?\})\s*;?\s*<\/script>/s'
         );
-
         if (is_array($pageState)) {
             $photo = $this->findPhotoInState($pageState);
             if (!empty($photo)) {
@@ -118,23 +135,18 @@ class KuaishouAdapter extends AbstractAdapter
             $defaultClient = $apollo;
         }
 
-        // visionVideoDetail
         $detail = $defaultClient['visionVideoDetail'] ?? null;
         if (is_array($detail) && isset($detail['photo']) && is_array($detail['photo'])) {
             return $detail['photo'];
         }
 
-        // 遍历所有键寻找 photo
         foreach ($defaultClient as $value) {
             if (!is_array($value)) {
                 continue;
             }
-
             if (isset($value['photo']) && is_array($value['photo'])) {
                 return $value['photo'];
             }
-
-            // 兼容直接是 photo 的情况
             if (isset($value['photoId']) && (isset($value['caption']) || isset($value['coverUrl']))) {
                 return $value;
             }
@@ -181,7 +193,7 @@ class KuaishouAdapter extends AbstractAdapter
             'url' => $url,
             'title' => $this->extractTitle($photo),
             'desc' => (string) ($photo['caption'] ?? ''),
-            'cover' => (string) ($photo['coverUrl'] ?? ''),
+            'cover' => $this->extractCover($photo),
             'author' => $this->extractAuthor($photo),
             'raw' => $photo,
         ];
@@ -213,6 +225,32 @@ class KuaishouAdapter extends AbstractAdapter
     /**
      * @param array<string,mixed> $photo
      *
+     * @return string
+     */
+    protected function extractCover(array $photo): string
+    {
+        // 新版移动端：coverUrls 为 [{url:...}] 数组
+        foreach (['coverUrls', 'webpCoverUrls'] as $key) {
+            $coverUrls = $photo[$key] ?? null;
+            if (!is_array($coverUrls)) {
+                continue;
+            }
+            foreach ($coverUrls as $cover) {
+                if (is_array($cover) && isset($cover['url'])) {
+                    return (string) $cover['url'];
+                }
+                if (is_string($cover) && $cover !== '') {
+                    return $cover;
+                }
+            }
+        }
+
+        return (string) ($photo['coverUrl'] ?? '');
+    }
+
+    /**
+     * @param array<string,mixed> $photo
+     *
      * @return array<int,string>
      */
     protected function extractImages(array $photo): array
@@ -222,34 +260,76 @@ class KuaishouAdapter extends AbstractAdapter
             return [];
         }
 
-        // cdn 列表（数组中每个元素为图片地址，或为 [{cdn, url}] 结构）
-        $cdnList = $atlas['cdn'] ?? $atlas['list'] ?? $atlas['images'] ?? [];
+        // 新版：list(路径) + cdn(域名) 拼接
+        $list = $atlas['list'] ?? null;
+        if (is_array($list)) {
+            $host = $this->extractCdnHost($atlas);
+            $images = [];
+            foreach ($list as $path) {
+                if (!is_string($path)) {
+                    continue;
+                }
+                $path = str_replace('\\/', '/', $path);
+                $images[] = $host !== '' ? 'https://' . $host . $path : $path;
+            }
+            if (!empty($images)) {
+                return array_values(array_unique($images));
+            }
+        }
 
-        $list = [];
+        // 旧版：cdn 数组为完整 URL，或 [{cdn,url}] 结构
+        $cdnList = $atlas['cdn'] ?? $atlas['images'] ?? [];
+        $list2 = [];
         if (is_array($cdnList)) {
             foreach ($cdnList as $item) {
                 if (is_string($item) && $item !== '') {
-                    $list[] = $item;
+                    $list2[] = $item;
                     continue;
                 }
-
                 if (is_array($item)) {
                     $url = (string) ($item['url'] ?? $item['cdn'] ?? '');
                     if ($url !== '') {
-                        $list[] = $url;
+                        $list2[] = $url;
                     }
                 }
             }
         }
 
-        // cdn0/cdn1... 形式
         foreach (['cdn0', 'cdn1', 'cdn2', 'cdn3', 'cdn4'] as $key) {
             if (isset($atlas[$key]) && is_string($atlas[$key]) && $atlas[$key] !== '') {
-                $list[] = $atlas[$key];
+                $list2[] = $atlas[$key];
             }
         }
 
-        return array_values(array_unique($list));
+        return array_values(array_unique($list2));
+    }
+
+    /**
+     * 从 atlas 中提取首个 CDN 域名。
+     *
+     * @param array<string,mixed> $atlas
+     *
+     * @return string
+     */
+    protected function extractCdnHost(array $atlas): string
+    {
+        if (isset($atlas['cdn']) && is_array($atlas['cdn'])) {
+            foreach ($atlas['cdn'] as $c) {
+                if (is_string($c) && $c !== '') {
+                    return $c;
+                }
+            }
+        }
+
+        if (isset($atlas['cdnList']) && is_array($atlas['cdnList'])) {
+            foreach ($atlas['cdnList'] as $c) {
+                if (is_array($c) && isset($c['cdn']) && is_string($c['cdn'])) {
+                    return $c['cdn'];
+                }
+            }
+        }
+
+        return '';
     }
 
     /**
@@ -268,6 +348,9 @@ class KuaishouAdapter extends AbstractAdapter
                     continue;
                 }
                 $url = (string) ($mv['url'] ?? '');
+                if ($url === '' && isset($mv['host'])) {
+                    $url = (string) $mv['host'];
+                }
                 if ($url !== '') {
                     $videos[] = [
                         'url' => $url,
@@ -302,13 +385,11 @@ class KuaishouAdapter extends AbstractAdapter
             $author = [];
         }
 
-        $avatar = (string) ($author['headerUrl'] ?? $author['avatar'] ?? $author['avatarUrl'] ?? '');
+        $id = (string) ($author['eid'] ?? $author['id'] ?? $author['userId'] ?? $photo['kwaiId'] ?? $photo['userId'] ?? '');
+        $name = (string) ($author['name'] ?? $author['nickname'] ?? $photo['userName'] ?? '');
+        $avatar = (string) ($author['headerUrl'] ?? $author['avatar'] ?? $author['avatarUrl'] ?? $photo['headUrl'] ?? '');
 
-        return new Author(
-            (string) ($author['eid'] ?? $author['id'] ?? $author['userId'] ?? ''),
-            (string) ($author['name'] ?? $author['nickname'] ?? ''),
-            $avatar
-        );
+        return new Author($id, $name, $avatar);
     }
 
     /**

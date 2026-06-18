@@ -63,6 +63,17 @@ class XiaohongshuAdapter extends AbstractAdapter
             'Referer' => 'https://www.xiaohongshu.com/',
         ]);
 
+        // 风控检测：短链被重定向到安全校验 404 页
+        if ($finalUrl !== '' && (
+            strpos($finalUrl, '/404/sec_') !== false
+            || strpos($finalUrl, 'source=xhs_sec_server') !== false
+        )) {
+            throw new ParseException(
+                '小红书触发了风控校验，服务器端直接抓取被拦截。'
+                . '请通过 withCookie() 注入浏览器中真实的 Cookie 后重试，或使用代理。'
+            );
+        }
+
         $noteId = $this->extractNoteId($finalUrl) ?: $this->extractNoteId($url);
         $note = $this->extractNote($body, $noteId);
 
