@@ -12,7 +12,8 @@ use Zyan\V2d\Results\VideoResult;
 use Zyan\V2d\Results\ImageResult;
 
 $links = [
-    'douyin'     => 'https://v.douyin.com/ws3MyrdUru0/',
+    'douyin'      => 'https://v.douyin.com/ws3MyrdUru0/',
+    'kuaishou'    => 'https://v.kuaishou.com/nHpAGzrX',
     'xiaohongshu' => 'http://xhslink.com/o/6cQi47pyi36',
 ];
 
