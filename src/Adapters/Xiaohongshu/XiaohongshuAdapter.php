@@ -338,6 +338,38 @@ class XiaohongshuAdapter extends AbstractAdapter
     }
 
     /**
+     * 从笔记中提取背景音乐信息。
+     *
+     * 小红书视频笔记的音乐信息结构多变，这里兼容 bgm / music 等字段。
+     *
+     * @param array<string,mixed> $note
+     *
+     * @return Music
+     */
+    protected function extractMusic(array $note): Music
+    {
+        $bgm = $note['bgm'] ?? $note['music'] ?? $note['sound'] ?? null;
+        if (!is_array($bgm)) {
+            return new Music();
+        }
+
+        $url = (string) ($bgm['url'] ?? '');
+        if ($url === '' && isset($bgm['urlList']) && is_array($bgm['urlList'])) {
+            $url = (string) ($bgm['urlList'][0] ?? '');
+        }
+
+        $cover = $this->normalizeUrl((string) ($bgm['cover'] ?? $bgm['coverUrl'] ?? ''));
+
+        return new Music(
+            (string) ($bgm['id'] ?? $bgm['musicId'] ?? ''),
+            (string) ($bgm['title'] ?? $bgm['name'] ?? ''),
+            (string) ($bgm['author'] ?? $bgm['artist'] ?? ''),
+            $this->normalizeUrl($url),
+            $cover
+        );
+    }
+
+    /**
      * 规范化小红书资源地址，补全协议与查询参数。
      *
      * @param string $url
