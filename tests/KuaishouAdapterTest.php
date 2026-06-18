@@ -36,6 +36,17 @@ class KuaishouAdapterTest extends TestCase
                     'https://example.com/img2.jpg',
                 ],
             ],
+            'soundTrack' => [
+                'id' => 28886255390,
+                'name' => '快手原声',
+                'artist' => '快手作者',
+                'audioUrls' => [
+                    ['cdn' => 'hw.a.yximgs.com', 'url' => 'https://hw.a.yximgs.com/ost.m4a'],
+                ],
+                'imageUrls' => [
+                    ['cdn' => 'hw.a.yximgs.com', 'url' => 'https://hw.a.yximgs.com/ost.jpg'],
+                ],
+            ],
         ], $photoOverrides);
 
         $payload = [
@@ -94,6 +105,14 @@ class KuaishouAdapterTest extends TestCase
         $array = $result->toArray();
         $this->assertSame('image', $array['type']);
         $this->assertArrayHasKey('images', $array);
+
+        // 背景音乐
+        $music = $result->getMusic();
+        $this->assertSame('28886255390', $music->getId());
+        $this->assertSame('快手原声', $music->getTitle());
+        $this->assertSame('快手作者', $music->getAuthor());
+        $this->assertSame('https://hw.a.yximgs.com/ost.m4a', $music->getUrl());
+        $this->assertSame('https://hw.a.yximgs.com/ost.jpg', $music->getCover());
     }
 
     public function testFetchVideo(): void

@@ -44,6 +44,16 @@ function printResult(string $title, $result): void
         . ' (id: ' . $author->getId() . ')' . PHP_EOL;
     echo '作者头像: ' . $author->getAvatar() . PHP_EOL;
 
+    // 背景音乐
+    $music = $result->getMusic();
+    if (!$music->isEmpty()) {
+        echo '--- 背景音乐 ---' . PHP_EOL;
+        echo '  曲名: ' . $music->getTitle() . PHP_EOL;
+        echo '  艺人: ' . $music->getAuthor() . PHP_EOL;
+        echo '  地址: ' . ($music->getUrl() !== '' ? $music->getUrl() : '(无，平台版权限制)') . PHP_EOL;
+        echo '  封面: ' . $music->getCover() . PHP_EOL;
+    }
+
     if ($result instanceof ImageResult) {
         $images = $result->getImages();
         echo '图片数量: ' . count($images) . PHP_EOL;

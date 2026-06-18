@@ -37,6 +37,13 @@ class XiaohongshuAdapterTest extends TestCase
                 ['urlDefault' => '//sns-webpic.example.com/img1.jpg'],
                 ['urlDefault' => 'https://sns-webpic.example.com/img2.jpg'],
             ],
+            'bgm' => [
+                'id' => 'bgm001',
+                'title' => '小红书背景音乐',
+                'author' => '小红书音乐人',
+                'url' => 'https://sns-video.example.com/bgm.mp3',
+                'cover' => '//sns-webpic.example.com/bgm_cover.jpg',
+            ],
         ], $noteOverrides);
 
         $payload = [
@@ -96,6 +103,15 @@ class XiaohongshuAdapterTest extends TestCase
         $array = $result->toArray();
         $this->assertSame('image', $array['type']);
         $this->assertArrayHasKey('images', $array);
+
+        // 背景音乐
+        $music = $result->getMusic();
+        $this->assertSame('bgm001', $music->getId());
+        $this->assertSame('小红书背景音乐', $music->getTitle());
+        $this->assertSame('小红书音乐人', $music->getAuthor());
+        $this->assertSame('https://sns-video.example.com/bgm.mp3', $music->getUrl());
+        // // 开头的封面应补全为 https:
+        $this->assertSame('https://sns-webpic.example.com/bgm_cover.jpg', $music->getCover());
     }
 
     public function testFetchVideo(): void

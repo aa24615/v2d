@@ -39,6 +39,13 @@ class DouyinAdapterTest extends TestCase
                 ['url_list' => ['https://example.com/img1.jpg~tplv-tikx.image']],
                 ['url_list' => ['https://example.com/img2.jpg~tplv-tikx.image']],
             ],
+            'music' => [
+                'mid' => '7651915475558976319',
+                'title' => '原声-测试作者',
+                'author' => '测试作者',
+                'cover_large' => ['url_list' => ['https://example.com/music_cover.jpg']],
+                'play_url' => ['url_list' => ['https://example.com/music.mp3']],
+            ],
         ], $overrides);
     }
 
@@ -97,6 +104,15 @@ class DouyinAdapterTest extends TestCase
         $array = $result->toArray();
         $this->assertSame('image', $array['type']);
         $this->assertArrayHasKey('images', $array);
+
+        // 背景音乐
+        $music = $result->getMusic();
+        $this->assertSame('7651915475558976319', $music->getId());
+        $this->assertSame('原声-测试作者', $music->getTitle());
+        $this->assertSame('测试作者', $music->getAuthor());
+        $this->assertSame('https://example.com/music.mp3', $music->getUrl());
+        $this->assertSame('https://example.com/music_cover.jpg', $music->getCover());
+        $this->assertArrayHasKey('music', $array);
     }
 
     public function testFetchVideo(): void
@@ -122,6 +138,9 @@ class DouyinAdapterTest extends TestCase
         // playwm 应被替换为 play
         $this->assertSame('https://example.com/video_play.mp4', $videos[0]['url']);
         $this->assertSame('https://example.com/video_play.mp4', $result->getVideoUrl());
+
+        // 音乐播放地址应被提取
+        $this->assertSame('https://example.com/music.mp3', $result->getMusic()->getUrl());
     }
 
     public function testFetchInvalidUrlThrowsException(): void

@@ -57,6 +57,13 @@ if ($result->getType() === 'image') {
 } else {
     echo $result->getVideoUrl(); // 最优视频地址
 }
+
+// 背景音乐
+$music = $result->getMusic();
+if (!$music->isEmpty()) {
+    echo $music->getTitle(); // 音乐标题
+    echo $music->getUrl();   // 音乐播放地址（部分平台因版权可能为空）
+}
 ```
 
 也可以直接获取数组或 JSON：
@@ -82,6 +89,13 @@ $json  = $v2d->fetchJson('http://xhslink.com/o/wjWTM5ZvMj');
         "nickname": "作者昵称",
         "avatar": "https://example.com/avatar.jpg"
     },
+    "music": {
+        "id": "music_id",
+        "title": "背景音乐标题",
+        "author": "音乐作者",
+        "url": "https://example.com/bgm.m4a",
+        "cover": "https://example.com/music_cover.jpg"
+    },
     "cover": "https://example.com/cover.jpg",
     "images": [
         "https://example.com/img1.jpg",
@@ -105,6 +119,13 @@ $json  = $v2d->fetchJson('http://xhslink.com/o/wjWTM5ZvMj');
         "nickname": "作者昵称",
         "avatar": "https://example.com/head.jpg"
     },
+    "music": {
+        "id": "28886255390",
+        "title": "作品原声",
+        "author": "音乐作者",
+        "url": "https://example.com/bgm.m4a",
+        "cover": "https://example.com/music_cover.jpg"
+    },
     "cover": "https://example.com/cover.jpg",
     "videos": [
         { "url": "https://example.com/video.mp4", "quality": "normal", "format": "mp4" }
@@ -123,6 +144,7 @@ $json  = $v2d->fetchJson('http://xhslink.com/o/wjWTM5ZvMj');
 | `getTitle()` | 标题（描述的首行） |
 | `getDesc()` | 完整描述 |
 | `getAuthor()` | 作者对象（`getId` / `getNickname` / `getAvatar`） |
+| `getMusic()` | 背景音乐对象（`getId` / `getTitle` / `getAuthor` / `getUrl` / `getCover` / `isEmpty`） |
 | `getCover()` | 封面地址 |
 | `getRaw()` | 平台原始数据 |
 | `toArray()` / `toJson()` | 序列化输出 |
@@ -262,6 +284,9 @@ A：小红书对服务器端 IP 有严格风控，会重定向到安全校验 40
 **Q：抓取到的图片是高清图吗？**
 A：抖音图集会尝试替换为原图参数；快手返回的即为平台 CDN 图集地址；如需更高清，可对返回 URL 自行调整参数。
 
+**Q：背景音乐的播放地址为什么有时候为空？**
+A：抖音分享页出于版权保护，`music` 对象通常不返回播放地址（`url` 为空），但仍可获取曲名、艺人、封面等元信息；快手 `soundTrack` 会返回可播放的 `audioUrls`。
+
 **Q：链接失效或被删除？**
 A：会抛出 `ParseException`，建议捕获后跳过或重试。
 
@@ -283,6 +308,7 @@ src/
 ├── Results/
 │   ├── Result.php                  # 结果基类
 │   ├── Author.php                  # 作者值对象
+│   ├── Music.php                   # 背景音乐值对象
 │   ├── ImageResult.php             # 图文结果
 │   └── VideoResult.php             # 视频结果
 └── Exceptions/

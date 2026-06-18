@@ -33,6 +33,16 @@ foreach ($links as $platform => $url) {
         echo '作者:   ' . $result->getAuthor()->getNickname() . PHP_EOL;
         echo '封面:   ' . $result->getCover() . PHP_EOL;
 
+        // 背景音乐
+        $music = $result->getMusic();
+        if (!$music->isEmpty()) {
+            echo '--- 背景音乐 ---' . PHP_EOL;
+            echo '  曲名: ' . $music->getTitle() . PHP_EOL;
+            echo '  艺人: ' . $music->getAuthor() . PHP_EOL;
+            echo '  地址: ' . ($music->getUrl() !== '' ? $music->getUrl() : '(无，平台版权限制)') . PHP_EOL;
+            echo '  封面: ' . $music->getCover() . PHP_EOL;
+        }
+
         if ($result instanceof VideoResult) {
             echo '视频数量: ' . count($result->getVideos()) . PHP_EOL;
             echo '最优地址: ' . $result->getVideoUrl() . PHP_EOL;
