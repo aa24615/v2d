@@ -27,12 +27,14 @@ abstract class Result
     protected string $title = '';
     protected string $desc = '';
     protected Author $author;
+    protected Music $music;
     protected string $cover = '';
     protected array $raw = [];
 
     public function __construct(array $data = [])
     {
         $this->author = new Author();
+        $this->music = new Music();
 
         foreach ($data as $key => $value) {
             if (property_exists($this, $key)) {
@@ -44,12 +46,26 @@ abstract class Result
                     );
                     continue;
                 }
+                if ($key === 'music' && is_array($value)) {
+                    $this->music = new Music(
+                        (string) ($value['id'] ?? ''),
+                        (string) ($value['title'] ?? ''),
+                        (string) ($value['author'] ?? ''),
+                        (string) ($value['url'] ?? ''),
+                        (string) ($value['cover'] ?? '')
+                    );
+                    continue;
+                }
                 $this->{$key} = $value;
             }
         }
 
         if (isset($data['author']) && $data['author'] instanceof Author) {
             $this->author = $data['author'];
+        }
+
+        if (isset($data['music']) && $data['music'] instanceof Music) {
+            $this->music = $data['music'];
         }
     }
 
@@ -83,6 +99,16 @@ abstract class Result
         return $this->author;
     }
 
+    /**
+     * 获取背景音乐信息（无音乐时返回空的 Music 对象）。
+     *
+     * @return Music
+     */
+    public function getMusic(): Music
+    {
+        return $this->music;
+    }
+
     public function getCover(): string
     {
         return $this->cover;
@@ -110,6 +136,7 @@ abstract class Result
             'title' => $this->title,
             'desc' => $this->desc,
             'author' => $this->author->toArray(),
+            'music' => $this->music->toArray(),
             'cover' => $this->cover,
             'raw' => $this->raw,
         ];

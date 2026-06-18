@@ -9,6 +9,7 @@ use Zyan\V2d\Exceptions\InvalidUrlException;
 use Zyan\V2d\Exceptions\ParseException;
 use Zyan\V2d\Results\Author;
 use Zyan\V2d\Results\ImageResult;
+use Zyan\V2d\Results\Music;
 use Zyan\V2d\Results\Result;
 use Zyan\V2d\Results\VideoResult;
 
@@ -195,6 +196,7 @@ class KuaishouAdapter extends AbstractAdapter
             'desc' => (string) ($photo['caption'] ?? ''),
             'cover' => $this->extractCover($photo),
             'author' => $this->extractAuthor($photo),
+            'music' => $this->extractMusic($photo),
             'raw' => $photo,
         ];
 
@@ -390,6 +392,67 @@ class KuaishouAdapter extends AbstractAdapter
         $avatar = (string) ($author['headerUrl'] ?? $author['avatar'] ?? $author['avatarUrl'] ?? $photo['headUrl'] ?? '');
 
         return new Author($id, $name, $avatar);
+    }
+
+    /**
+     * 从 photo 中提取背景音乐信息。
+     *
+     * 快手 soundTrack 字段含 name/artist/id/audioUrls([{cdn,url}])/imageUrls。
+     *
+     * @param array<string,mixed> $photo
+     *
+     * @return Music
+     */
+    protected function extractMusic(array $photo): Music
+    {
+        $sound = $photo['soundTrack'] ?? $photo['soundtrack'] ?? $photo['audio'] ?? null;
+        if (!is_array($sound)) {
+            return new Music();
+        }
+
+        $id = (string) ($sound['id'] ?? '');
+
+        // 播放地址：audioUrls 为 [{cdn,url}] 数组
+        $url = $this->pickFirstCdnUrl($sound['audioUrls'] ?? $sound['audios'] ?? []);
+
+        // 封面：imageUrls / avatarUrls
+        $cover = $this->pickFirstCdnUrl($sound['imageUrls'] ?? $sound['avatarUrls'] ?? []);
+        if ($cover === '' && isset($sound['coverUrl']) && is_string($sound['coverUrl'])) {
+            $cover = $sound['coverUrl'];
+        }
+
+        return new Music(
+            $id,
+            (string) ($sound['name'] ?? $sound['title'] ?? ''),
+            (string) ($sound['artist'] ?? $sound['author'] ?? ''),
+            $url,
+            $cover
+        );
+    }
+
+    /**
+     * 从快手 CDN 数组（[{cdn,url}] 或 [url]）中取首个地址。
+     *
+     * @param mixed $list
+     *
+     * @return string
+     */
+    protected function pickFirstCdnUrl($list): string
+    {
+        if (!is_array($list)) {
+            return '';
+        }
+
+        foreach ($list as $item) {
+            if (is_string($item) && $item !== '') {
+                return $item;
+            }
+            if (is_array($item) && isset($item['url']) && is_string($item['url']) && $item['url'] !== '') {
+                return $item['url'];
+            }
+        }
+
+        return '';
     }
 
     /**

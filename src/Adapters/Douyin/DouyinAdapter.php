@@ -9,6 +9,7 @@ use Zyan\V2d\Exceptions\InvalidUrlException;
 use Zyan\V2d\Exceptions\ParseException;
 use Zyan\V2d\Results\Author;
 use Zyan\V2d\Results\ImageResult;
+use Zyan\V2d\Results\Music;
 use Zyan\V2d\Results\Result;
 use Zyan\V2d\Results\VideoResult;
 
@@ -181,6 +182,7 @@ class DouyinAdapter extends AbstractAdapter
             'desc' => (string) ($item['desc'] ?? ''),
             'cover' => $this->extractCover($item),
             'author' => $this->extractAuthor($item),
+            'music' => $this->extractMusic($item),
             'raw' => $item,
         ];
 
@@ -326,6 +328,60 @@ class DouyinAdapter extends AbstractAdapter
             (string) ($author['uid'] ?? $author['short_id'] ?? ''),
             (string) ($author['nickname'] ?? ''),
             $this->pickUrl($avatarUrls)
+        );
+    }
+
+    /**
+     * 从 item 中提取背景音乐信息。
+     *
+     * 抖音 music 字段含 mid/title/author/cover_*，播放地址因版权通常缺失，
+     * 兼容 play_url/url/play_url_lowbr 等可能字段。
+     *
+     * @param array<string,mixed> $item
+     *
+     * @return Music
+     */
+    protected function extractMusic(array $item): Music
+    {
+        $music = $item['music'] ?? null;
+        if (!is_array($music)) {
+            return new Music();
+        }
+
+        $id = (string) ($music['mid'] ?? $music['id'] ?? '');
+
+        // 播放地址：抖音分享页常无，兼容多种字段
+        $url = '';
+        foreach (['play_url', 'play_url_lowbr', 'url'] as $key) {
+            $val = $music[$key] ?? null;
+            if (is_array($val) && isset($val['url_list'])) {
+                $url = $this->pickUrl($val['url_list']);
+            } elseif (is_string($val) && $val !== '') {
+                $url = $val;
+            }
+            if ($url !== '') {
+                break;
+            }
+        }
+
+        // 封面：优先大图
+        $cover = '';
+        foreach (['cover_large', 'cover_medium', 'cover_hd', 'cover_thumb'] as $key) {
+            $val = $music[$key] ?? null;
+            if (is_array($val) && isset($val['url_list'])) {
+                $cover = $this->pickUrl($val['url_list']);
+                if ($cover !== '') {
+                    break;
+                }
+            }
+        }
+
+        return new Music(
+            $id,
+            (string) ($music['title'] ?? ''),
+            (string) ($music['author'] ?? ''),
+            $url,
+            $cover
         );
     }
 

@@ -9,6 +9,7 @@ use Zyan\V2d\Exceptions\InvalidUrlException;
 use Zyan\V2d\Exceptions\ParseException;
 use Zyan\V2d\Results\Author;
 use Zyan\V2d\Results\ImageResult;
+use Zyan\V2d\Results\Music;
 use Zyan\V2d\Results\Result;
 use Zyan\V2d\Results\VideoResult;
 
@@ -191,6 +192,7 @@ class XiaohongshuAdapter extends AbstractAdapter
             'desc' => (string) ($note['desc'] ?? ''),
             'cover' => $this->extractCover($note, $imageList),
             'author' => $this->extractAuthor($note),
+            'music' => $this->extractMusic($note),
             'raw' => $note,
         ];
 
