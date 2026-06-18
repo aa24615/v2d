@@ -21,7 +21,7 @@
     ],
     "require": {
         "php": ">=7.4",
-        "guzzlehttp/guzzle": "^7.5",
+        "guzzlehttp/guzzle": "^6.5|^7.5",
         "symfony/dom-crawler": "^5.4",
         "ext-json": "*",
         "ext-mbstring": "*"
