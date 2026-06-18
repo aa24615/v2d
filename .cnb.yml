@@ -1,0 +1,16 @@
+
+$:
+  vscode:
+    - runner:
+        cpus: 4
+      docker:
+        image: docker.cnb.cool/scrmoa/docker/public/node-cnb-dev:24
+      services:
+        - vscode
+        - docker
+      stages:
+        - name: install
+          script: |
+            cd /workspace/server && pnpm install && npx prisma generate
+            cd /workspace/admin && pnpm install
+            cd /workspace/user && pnpm install
