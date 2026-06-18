@@ -1,0 +1,49 @@
+{
+    "name": "zyan/v2d",
+    "description": "一个标准的短视频 APP 视频/图文抓取 SDK，支持抖音、小红书、快手等平台。",
+    "type": "library",
+    "keywords": [
+        "短视频",
+        "抖音",
+        "小红书",
+        "快手",
+        "video",
+        "spider",
+        "crawler"
+    ],
+    "homepage": "https://github.com/zyan-cn/v2d",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "zyan",
+            "homepage": "https://github.com/zyan-cn"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "guzzlehttp/guzzle": "^7.5",
+        "symfony/dom-crawler": "^5.4",
+        "ext-json": "*",
+        "ext-mbstring": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Zyan\\V2d\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Zyan\\V2d\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable"
+}
